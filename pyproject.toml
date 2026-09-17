@@ -1,0 +1,99 @@
+[project]
+name = "gl12-suite"
+version = "0.1.0"
+description = "Typed library for downloading INPE GL1.2 daily solar irradiance from the BDC STAC service and creating Zarr v3 experiments"
+readme = "README.md"
+authors = [
+    { name = "ericmiguel", email = "eric.mrib@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "h5netcdf",
+    "h5py",
+    "httpx",
+    "tenacity",
+    "xarray",
+    "zarr>=3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "pyrefly",
+]
+
+[tool.ruff]
+required-version = ">=0.15.20"
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "B",
+    "UP",
+    "SIM",
+    "I",
+    "N",
+    "ARG",
+    "PTH",
+    "TC",
+    "RET",
+    "RUF",
+]
+ignore = []
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+force-single-line = true
+
+[tool.ruff.lint.per-file-ignores]
+
+"tests/**.py" = ["S101"]
+"__init__.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+addopts = "-m 'not network'"
+markers = [
+    "network: optional INPE BDC STAC smoke test",
+]
+
+[tool.pyrefly]
+preset = "strict"
+project-includes = ["src", "tests"]
+project-excludes = [
+    "**/.venv/**",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/dist/**",
+]
+use-ignore-files = true
+search-path = ["src", "tests"]
+disable-search-path-heuristics = true
+enable-fallback-search-path = false
+python-version = "3.12"
+min-severity = "error"
+output-format = "github"
+check-unannotated-defs = true
+infer-return-types = "checked"
+strict-callable-subtyping = true
+ignore-errors-in-generated-code = false
+skip-lsp-config-indexing = true
+
+[build-system]
+requires = ["uv_build>=0.12.4,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "gl12"
