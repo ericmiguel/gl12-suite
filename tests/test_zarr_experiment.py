@@ -25,6 +25,7 @@ from gl12 import normalize_dataset
 from gl12 import open_gl12_dataset
 from gl12 import stamp_day
 from gl12 import write_zarr
+from gl12.cache import ExperimentNamespace
 
 
 if TYPE_CHECKING:
@@ -97,6 +98,20 @@ def test_two_days_concatenate_along_time(tmp_path: Path) -> None:
         assert "dswrf" in dataset.data_vars
         times = dataset["time"].values
         assert times[0] < times[1]
+
+
+def test_empty_request_group_is_skipped(tmp_path: Path) -> None:
+    """An unpublished day does not fail the whole store when others exist."""
+    first = tmp_path / "a.nc"
+    write_netcdf(first)
+    groups = (
+        (DailyRequest(day=date(2026, 9, 14)), (first,)),
+        (DailyRequest(day=date(2026, 9, 15)), ()),
+    )
+    store = files_to_zarr((), tmp_path / "partial.zarr", request_sources=groups)
+    with xr.open_zarr(store, consolidated=False) as dataset:
+        assert dataset.sizes["time"] == 1
+        assert "dswrf" in dataset.data_vars
 
 
 def test_write_zarr_refuses_to_overwrite_by_default(tmp_path: Path) -> None:
@@ -187,6 +202,32 @@ def test_experiment_cache_key_is_isolated_per_request(tmp_path: Path) -> None:
     )
     assert base.cache_key != other.cache_key
     assert base.store_path != other.store_path
+    assert base.cache_path == tmp_path / ".cache" / "fragments" / "gl12" / "v2"
+    assert base.store_path == (
+        tmp_path / ".cache" / "stores" / "gl12" / "probe" / f"{base.fingerprint}.zarr"
+    )
+
+
+def test_experiment_records_store_in_manifest(
+    tmp_path: Path, netcdf_payload: bytes
+) -> None:
+    """Writing a store records its fingerprint, coverage, and provenance."""
+    experiment = Experiment(
+        name="probe",
+        day=request(),
+        downloader=downloader_for(netcdf_payload),
+        root_dir=tmp_path,
+    )
+    experiment.download()
+    experiment.to_zarr()
+    namespace = ExperimentNamespace(tmp_path, "gl12", "probe")
+    manifest = namespace.load_manifest()
+    assert manifest is not None
+    assert manifest.current == experiment.fingerprint
+    record = manifest.stores[experiment.fingerprint]
+    assert record.coverage["variables"] == ["dswrf"]
+    assert record.coverage["grid"] == "latlon:0.04:south-america"
+    assert record.provenance == {"0": "published"}
 
 
 def test_experiment_rejects_empty_and_mistyped_requests(tmp_path: Path) -> None:

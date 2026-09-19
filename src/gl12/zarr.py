@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from shutil import rmtree
 from typing import TYPE_CHECKING
@@ -24,6 +25,8 @@ if TYPE_CHECKING:
 
 #: Decoder coordinate names mapped onto the canonical store vocabulary.
 COORDINATE_ALIASES = {"latitude": "lat", "longitude": "lon"}
+
+LOGGER = logging.getLogger(__name__)
 
 
 def normalize_dataset(dataset: xr.Dataset) -> xr.Dataset:
@@ -154,7 +157,10 @@ def files_to_zarr(
     for request, paths in groups:
         request_paths = tuple(paths)
         if not request_paths:
-            raise ValueError("A request group must carry at least one GL1.2 file.")
+            LOGGER.warning(
+                "Skipping GL1.2 request for %s: no published grid.", request.day
+            )
+            continue
         for path in request_paths:
             dataset = stamp_day(open_gl12_dataset(path), request.day)
             cropped = (
